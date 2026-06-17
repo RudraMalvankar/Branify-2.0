@@ -1,0 +1,54 @@
+#old File
+.old/
+old/
+# Cline
+.clinerules/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# Testing
+coverage/
+
+# Drizzle
+drizzle/meta/
+
+# Docker
+docker/data/
+
+# PWA
+public/sw.js
+public/workbox-*.js
