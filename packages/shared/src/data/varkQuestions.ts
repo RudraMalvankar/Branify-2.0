@@ -1,6 +1,7 @@
 export interface VarkQuestion {
   id: string;
   text: string;
+  category: string;
   options: VarkOption[];
 }
 
@@ -9,11 +10,34 @@ export interface VarkOption {
   style: 'Visual' | 'Aural' | 'Read/Write' | 'Kinesthetic';
 }
 
+export const questionCategories = [
+  { id: 'direction', label: 'Directions & Navigation', icon: '🧭', desc: 'How you give and receive directions' },
+  { id: 'planning', label: 'Planning & Preparation', icon: '📋', desc: 'How you plan activities and prepare' },
+  { id: 'learning', label: 'Learning & Studying', icon: '📚', desc: 'How you absorb new information' },
+  { id: 'practical', label: 'Practical Tasks', icon: '🛠️', desc: 'How you approach hands-on activities' },
+  { id: 'communication', label: 'Communication', icon: '💬', desc: 'How you give feedback and express ideas' },
+  { id: 'recreation', label: 'Leisure & Recreation', icon: '🎵', desc: 'How you spend your free time' },
+  { id: 'technology', label: 'Technology & Gadgets', icon: '💻', desc: 'How you interact with technology' },
+  { id: 'recall', label: 'Memory & Recall', icon: '🧠', desc: 'How you remember past experiences' },
+];
+
+export const motivationalMessages = [
+  { range: [1, 4], message: "Great start! You're discovering how your mind works best.", emoji: '🌟' },
+  { range: [5, 8], message: "You're building a clear picture of your learning DNA!", emoji: '🧬' },
+  { range: [9, 12], message: 'Almost there! Your learning style is becoming clear.', emoji: '🎯' },
+  { range: [13, 16], message: 'Just a few more — your results are loading!', emoji: '🚀' },
+];
+
+export function getMotivationalMessage(currentQuestion: number): { message: string; emoji: string } {
+  const index = Math.min(Math.floor(currentQuestion / 4), 3);
+  return motivationalMessages[index];
+}
+
 // 16 official VARK-style questions
-// option1 → Kinesthetic, option2 → Aural, option3 → Read/Write, option4 → Visual
 export const varkQuestions: VarkQuestion[] = [
   {
     id: 'q1',
+    category: 'direction',
     text: 'You are about to give a direction to a person who is with you. You would:',
     options: [
       { label: 'Draw a map or give a visual demonstration', style: 'Visual' },
@@ -24,6 +48,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q2',
+    category: 'planning',
     text: 'You are planning a vacation for a group. You would:',
     options: [
       { label: 'Look at maps and browse photos of destinations', style: 'Visual' },
@@ -34,6 +59,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q3',
+    category: 'direction',
     text: 'You are helping someone who wants to go to your house. You would:',
     options: [
       { label: 'Draw a map or show a picture of the house', style: 'Visual' },
@@ -44,6 +70,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q4',
+    category: 'technology',
     text: 'You are learning a new computer program. You would:',
     options: [
       { label: 'Watch a video tutorial or follow diagrams', style: 'Visual' },
@@ -54,6 +81,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q5',
+    category: 'practical',
     text: 'You are trying to assemble a new piece of furniture. You would:',
     options: [
       { label: 'Look at the picture diagram', style: 'Visual' },
@@ -64,6 +92,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q6',
+    category: 'learning',
     text: 'You are about to learn a new recipe. You would:',
     options: [
       { label: 'Watch a cooking video', style: 'Visual' },
@@ -74,6 +103,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q7',
+    category: 'recreation',
     text: 'You are in a museum. You prefer to:',
     options: [
       { label: 'Look at the exhibits and visual displays', style: 'Visual' },
@@ -84,6 +114,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q8',
+    category: 'learning',
     text: 'You are preparing for a test. You would:',
     options: [
       { label: 'Create diagrams and charts to study', style: 'Visual' },
@@ -94,6 +125,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q9',
+    category: 'technology',
     text: 'You are buying a new phone. You would:',
     options: [
       { label: 'Look at product images and videos', style: 'Visual' },
@@ -104,6 +136,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q10',
+    category: 'recreation',
     text: 'You are learning to play a new song. You would:',
     options: [
       { label: 'Watch someone play it first', style: 'Visual' },
@@ -114,6 +147,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q11',
+    category: 'technology',
     text: 'You are given a new gadget. You would:',
     options: [
       { label: 'Watch a demonstration video', style: 'Visual' },
@@ -124,6 +158,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q12',
+    category: 'learning',
     text: 'You are trying to understand a complex concept. You prefer:',
     options: [
       { label: 'See it illustrated with diagrams', style: 'Visual' },
@@ -134,6 +169,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q13',
+    category: 'communication',
     text: 'You are giving someone feedback on their work. You would:',
     options: [
       { label: 'Show them visual examples', style: 'Visual' },
@@ -144,6 +180,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q14',
+    category: 'planning',
     text: 'You are choosing a new course to take. You would prefer:',
     options: [
       { label: 'Look at infographics about the course', style: 'Visual' },
@@ -154,6 +191,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q15',
+    category: 'communication',
     text: 'You are organizing an event. You would:',
     options: [
       { label: 'Create a visual timeline or storyboard', style: 'Visual' },
@@ -164,6 +202,7 @@ export const varkQuestions: VarkQuestion[] = [
   },
   {
     id: 'q16',
+    category: 'recall',
     text: 'You are recalling a past experience. You most vividly remember:',
     options: [
       { label: 'The sights and visual scenes', style: 'Visual' },
