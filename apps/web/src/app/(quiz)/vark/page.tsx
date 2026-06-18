@@ -12,7 +12,6 @@ import {
 } from '@brainify/shared/data/varkQuestions';
 import ResultsDisplay from './results';
 
-const MAX_SELECTIONS = 2;
 const ESTIMATED_SECONDS_PER_QUESTION = 20;
 
 const STYLE_CONFIG = {
@@ -73,11 +72,8 @@ export default function VarkQuizPage() {
     setSelectedOptions((prev) => {
       const isSelected = prev.includes(style);
       if (isSelected) {
-        // Deselect
         return prev.filter((s) => s !== style);
       }
-      // Select (max 2)
-      if (prev.length >= MAX_SELECTIONS) return prev;
       return [...prev, style];
     });
   }, []);
@@ -266,11 +262,11 @@ export default function VarkQuizPage() {
                 {/* Multi-select instruction */}
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mb-6 sm:mb-7">
                   <p className="text-xs text-gray-400 dark:text-gray-500">
-                    Select up to <span className="font-semibold text-gray-600 dark:text-gray-300">{MAX_SELECTIONS} options</span> that best describe you
+                    Select <span className="font-semibold text-gray-600 dark:text-gray-300">all options</span> that describe you
                   </p>
                   {selectedOptions.length > 0 && (
                     <span className="text-[10px] font-medium text-brand bg-brand-50 dark:bg-brand/10 px-2 py-0.5 rounded-full">
-                      {selectedOptions.length}/{MAX_SELECTIONS} selected
+                      {selectedOptions.length} selected
                     </span>
                   )}
                 </div>
@@ -279,20 +275,17 @@ export default function VarkQuizPage() {
                   {question.options.map((opt, idx) => {
                     const style = opt.style as StyleKey;
                     const isSelected = selectedOptions.includes(style);
-                    const isDisabled = !isSelected && selectedOptions.length >= MAX_SELECTIONS;
                     const cfg = STYLE_CONFIG[style];
                     return (
                       <motion.button
                         key={opt.label}
                         onClick={() => handleOptionClick(style)}
-                        whileHover={!isDisabled ? { scale: 1.02 } : {}}
-                        whileTap={!isDisabled ? { scale: 0.98 } : {}}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         className={`group relative flex items-start gap-3 p-3 sm:p-4 rounded-2xl border-2 text-left transition-all duration-200 ${
                           isSelected
                             ? `border-brand ${cfg.bg} shadow-md shadow-brand/10`
-                            : isDisabled
-                              ? 'border-gray-50 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 opacity-50 cursor-not-allowed'
-                              : 'border-gray-100 dark:border-gray-600 bg-white dark:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-500 hover:shadow-md hover:-translate-y-0.5'
+                            : 'border-gray-100 dark:border-gray-600 bg-white dark:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-500 hover:shadow-md hover:-translate-y-0.5'
                         }`}
                       >
                         <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-gray-300 dark:text-gray-600 border border-gray-100 dark:border-gray-600 rounded px-1 leading-tight">
@@ -302,19 +295,15 @@ export default function VarkQuizPage() {
                           {cfg.icon}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs sm:text-sm font-medium leading-snug ${isSelected ? 'text-gray-900 dark:text-white' : isDisabled ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'}`}>
+                          <p className={`text-xs sm:text-sm font-medium leading-snug ${isSelected ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-200'}`}>
                             {opt.label}
                           </p>
-                          <span className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider mt-1 inline-block ${isSelected ? cfg.color : isDisabled ? 'text-gray-300 dark:text-gray-600' : cfg.color}`}>
+                          <span className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider mt-1 inline-block ${cfg.color}`}>
                             {opt.style}
                           </span>
                         </div>
                         <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 flex-shrink-0 mt-0.5 transition-all duration-200 flex items-center justify-center ${
-                          isSelected
-                            ? 'border-brand bg-brand'
-                            : isDisabled
-                              ? 'border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700'
-                              : 'border-gray-300 dark:border-gray-500'
+                          isSelected ? 'border-brand bg-brand' : 'border-gray-300 dark:border-gray-500'
                         }`}>
                           {isSelected && (
                             <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
