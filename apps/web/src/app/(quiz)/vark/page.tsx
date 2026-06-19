@@ -2,15 +2,14 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   varkQuestions,
   calculateVarkScore,
   getMotivationalMessage,
   questionCategories,
-  type VarkResult,
 } from '@brainify/shared/data/varkQuestions';
-import ResultsDisplay from './results';
 
 const ESTIMATED_SECONDS_PER_QUESTION = 20;
 
@@ -29,7 +28,6 @@ const slideVariants = {
   exit: (dir: number) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
 };
 
-/** Flatten all question selections into one array for scoring */
 function flattenSelections(selections: Record<string, StyleKey[]>): StyleKey[] {
   return Object.values(selections).flat();
 }
@@ -44,11 +42,10 @@ function getLiveTrend(selections: Record<string, StyleKey[]>): { style: StyleKey
 }
 
 export default function VarkQuizPage() {
+  const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  // Store array of styles per question ID (multi-select support)
   const [selections, setSelections] = useState<Record<string, StyleKey[]>>({});
   const [selectedOptions, setSelectedOptions] = useState<StyleKey[]>([]);
-  const [result, setResult] = useState<VarkResult | null>(null);
   const [slideDir, setSlideDir] = useState(1);
 
   const totalQuestions = varkQuestions.length;
@@ -57,23 +54,17 @@ export default function VarkQuizPage() {
   const moti = getMotivationalMessage(currentQuestion);
   const trend = useMemo(() => getLiveTrend(selections), [selections]);
 
-  // Refs for keyboard handler
   const currentRef = useRef(currentQuestion);
   const selectedRef = useRef(selectedOptions);
-  const resultRef = useRef(result);
   const selectionsRef = useRef(selections);
   currentRef.current = currentQuestion;
   selectedRef.current = selectedOptions;
-  resultRef.current = result;
   selectionsRef.current = selections;
 
   const handleOptionClick = useCallback((style: StyleKey) => {
-    if (resultRef.current) return;
     setSelectedOptions((prev) => {
       const isSelected = prev.includes(style);
-      if (isSelected) {
-        return prev.filter((s) => s !== style);
-      }
+      if (isSelected) return prev.filter((s) => s !== style);
       return [...prev, style];
     });
   }, []);
@@ -81,12 +72,7 @@ export default function VarkQuizPage() {
   const handleNext = useCallback(() => {
     if (selectedRef.current.length === 0) return;
     const qId = varkQuestions[currentRef.current].id;
-
-    // Merge local selections into the permanent store
-    const newSelections = {
-      ...selectionsRef.current,
-      [qId]: selectedRef.current,
-    };
+    const newSelections = { ...selectionsRef.current, [qId]: selectedRef.current };
 
     if (currentRef.current + 1 < totalQuestions) {
       setSlideDir(1);
@@ -94,24 +80,24 @@ export default function VarkQuizPage() {
       setCurrentQuestion((prev) => prev + 1);
       setSelectedOptions([]);
     } else {
-      // Build a flat Record<string, StyleKey> for calculateVarkScore
-      // Each selection gets its own entry keyed by `${questionId}-${idx}`
+      // Calculate VARK result and navigate to brain assessment with data
       const flat: Record<string, StyleKey> = {};
       Object.entries(newSelections).forEach(([qId, styles]) => {
         styles.forEach((style, idx) => {
           flat[`${qId}-${idx}`] = style;
         });
       });
-      const final = calculateVarkScore(flat);
-      setSelections(newSelections);
-      setResult(final);
+      const result = calculateVarkScore(flat);
+      // Store VARK result in sessionStorage for the unified results page
+      sessionStorage.setItem('varkResult', JSON.stringify(result));
+      sessionStorage.setItem('varkSelections', JSON.stringify(newSelections));
+      router.push('/brain-assessment');
     }
-  }, [totalQuestions]);
+  }, [totalQuestions, router]);
 
   const handleBack = useCallback(() => {
     if (currentRef.current > 0) {
       setSlideDir(-1);
-      // Restore previous question's selections
       const prevQId = varkQuestions[currentRef.current - 1]?.id;
       const prevSelections = selectionsRef.current[prevQId] || [];
       setCurrentQuestion((prev) => prev - 1);
@@ -119,10 +105,8 @@ export default function VarkQuizPage() {
     }
   }, []);
 
-  // Keyboard support
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (resultRef.current) return;
       const question = varkQuestions[currentRef.current];
       if (!question) return;
 
@@ -146,22 +130,8 @@ export default function VarkQuizPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleNext, handleBack, handleOptionClick]);
 
-  const progressPercent = ((currentQuestion + (result ? 1 : 0)) / totalQuestions) * 100;
+  const progressPercent = ((currentQuestion) / totalQuestions) * 100;
   const canProceed = selectedOptions.length > 0;
-
-  if (result) {
-    return (
-      <ResultsDisplay
-        result={result}
-        onRetake={() => {
-          setResult(null);
-          setCurrentQuestion(0);
-          setSelections({});
-          setSelectedOptions([]);
-        }}
-      />
-    );
-  }
 
   const question = varkQuestions[currentQuestion];
   const categoryInfo = questionCategories.find((c) => c.id === question.category);
@@ -187,12 +157,7 @@ export default function VarkQuizPage() {
             </span>
             <div className="hidden sm:flex items-center gap-1">
               {Array.from({ length: totalQuestions }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-2 h-2 rounded-full transition-all duration-500 ${
-                    i <= currentQuestion ? 'bg-brand scale-100' : 'bg-gray-200 dark:bg-gray-600 scale-75'
-                  } ${i === currentQuestion ? 'ring-2 ring-brand/30' : ''}`}
-                />
+                <div key={i} className={`w-2 h-2 rounded-full transition-all duration-500 ${i <= currentQuestion ? 'bg-brand scale-100' : 'bg-gray-200 dark:bg-gray-600 scale-75'} ${i === currentQuestion ? 'ring-2 ring-brand/30' : ''}`} />
               ))}
             </div>
           </div>
@@ -201,23 +166,13 @@ export default function VarkQuizPage() {
 
       {/* Progress bar */}
       <div className="h-1.5 bg-gray-100 dark:bg-gray-700/50">
-        <motion.div
-          className="h-full bg-gradient-to-r from-brand to-brand-light"
-          animate={{ width: `${progressPercent}%` }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-        />
+        <motion.div className="h-full bg-gradient-to-r from-brand to-brand-light" animate={{ width: `${progressPercent}%` }} transition={{ duration: 0.5, ease: 'easeOut' }} />
       </div>
 
       {/* Content */}
       <div className="flex-1 flex items-start justify-center px-3 sm:px-4 py-4 sm:py-8">
         <div className="w-full max-w-2xl mx-auto">
-          {/* Motivational bar */}
-          <motion.div
-            key={`moti-${currentQuestion}`}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between gap-2 mb-3 sm:mb-4 px-1"
-          >
+          <motion.div key={`moti-${currentQuestion}`} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between gap-2 mb-3 sm:mb-4 px-1">
             <div className="flex items-center gap-2">
               <span className="text-sm">{moti.emoji}</span>
               <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{moti.message}</span>
@@ -232,16 +187,7 @@ export default function VarkQuizPage() {
           </motion.div>
 
           <AnimatePresence mode="wait" custom={slideDir}>
-            <motion.div
-              key={currentQuestion}
-              custom={slideDir}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{ duration: 0.25, ease: 'easeInOut' }}
-            >
-              {/* Question card */}
+            <motion.div key={currentQuestion} custom={slideDir} variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.25, ease: 'easeInOut' }}>
               <div className="bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700/60 shadow-lg hover:shadow-xl transition-shadow duration-300 p-5 sm:p-8 mb-4 sm:mb-6">
                 <div className="flex items-center flex-wrap gap-2 sm:gap-3 mb-4 sm:mb-5">
                   {categoryInfo && (
@@ -250,24 +196,17 @@ export default function VarkQuizPage() {
                       <span className="hidden xs:inline">{categoryInfo.label}</span>
                     </span>
                   )}
-                  <span className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 font-medium ml-auto">
-                    #{currentQuestion + 1}
-                  </span>
+                  <span className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 font-medium ml-auto">#{currentQuestion + 1}</span>
                 </div>
 
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-snug mb-2">
-                  {question.text}
-                </h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white leading-snug mb-2">{question.text}</h2>
 
-                {/* Multi-select instruction */}
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mb-6 sm:mb-7">
                   <p className="text-xs text-gray-400 dark:text-gray-500">
                     Select <span className="font-semibold text-gray-600 dark:text-gray-300">all options</span> that describe you
                   </p>
                   {selectedOptions.length > 0 && (
-                    <span className="text-[10px] font-medium text-brand bg-brand-50 dark:bg-brand/10 px-2 py-0.5 rounded-full">
-                      {selectedOptions.length} selected
-                    </span>
+                    <span className="text-[10px] font-medium text-brand bg-brand-50 dark:bg-brand/10 px-2 py-0.5 rounded-full">{selectedOptions.length} selected</span>
                   )}
                 </div>
 
@@ -282,34 +221,16 @@ export default function VarkQuizPage() {
                         onClick={() => handleOptionClick(style)}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        className={`group relative flex items-start gap-3 p-3 sm:p-4 rounded-2xl border-2 text-left transition-all duration-200 ${
-                          isSelected
-                            ? `border-brand ${cfg.bg} shadow-md shadow-brand/10`
-                            : 'border-gray-100 dark:border-gray-600 bg-white dark:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-500 hover:shadow-md hover:-translate-y-0.5'
-                        }`}
+                        className={`group relative flex items-start gap-3 p-3 sm:p-4 rounded-2xl border-2 text-left transition-all duration-200 ${isSelected ? `border-brand ${cfg.bg} shadow-md shadow-brand/10` : 'border-gray-100 dark:border-gray-600 bg-white dark:bg-gray-700/50 hover:border-gray-200 dark:hover:border-gray-500 hover:shadow-md hover:-translate-y-0.5'}`}
                       >
-                        <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-gray-300 dark:text-gray-600 border border-gray-100 dark:border-gray-600 rounded px-1 leading-tight">
-                          {idx + 1}
-                        </span>
-                        <span className={`text-lg sm:text-xl flex-shrink-0 mt-0.5 transition-transform duration-200 ${isSelected ? 'scale-110' : ''}`}>
-                          {cfg.icon}
-                        </span>
+                        <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-gray-300 dark:text-gray-600 border border-gray-100 dark:border-gray-600 rounded px-1 leading-tight">{idx + 1}</span>
+                        <span className={`text-lg sm:text-xl flex-shrink-0 mt-0.5 transition-transform duration-200 ${isSelected ? 'scale-110' : ''}`}>{cfg.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-xs sm:text-sm font-medium leading-snug ${isSelected ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-200'}`}>
-                            {opt.label}
-                          </p>
-                          <span className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider mt-1 inline-block ${cfg.color}`}>
-                            {opt.style}
-                          </span>
+                          <p className={`text-xs sm:text-sm font-medium leading-snug ${isSelected ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-gray-200'}`}>{opt.label}</p>
+                          <span className={`text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider mt-1 inline-block ${cfg.color}`}>{opt.style}</span>
                         </div>
-                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 flex-shrink-0 mt-0.5 transition-all duration-200 flex items-center justify-center ${
-                          isSelected ? 'border-brand bg-brand' : 'border-gray-300 dark:border-gray-500'
-                        }`}>
-                          {isSelected && (
-                            <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
+                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 flex-shrink-0 mt-0.5 transition-all duration-200 flex items-center justify-center ${isSelected ? 'border-brand bg-brand' : 'border-gray-300 dark:border-gray-500'}`}>
+                          {isSelected && <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                         </div>
                       </motion.button>
                     );
@@ -321,15 +242,9 @@ export default function VarkQuizPage() {
 
           {/* Navigation */}
           <div className="flex items-center justify-between gap-3 mb-8">
-            <motion.button
-              onClick={handleBack}
-              disabled={currentQuestion === 0}
-              whileTap={{ scale: 0.95 }}
-              className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-3 sm:px-4 py-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-              </svg>
+            <motion.button onClick={handleBack} disabled={currentQuestion === 0} whileTap={{ scale: 0.95 }}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-3 sm:px-4 py-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
               <span className="hidden xs:inline">Back</span>
             </motion.button>
 
@@ -341,19 +256,12 @@ export default function VarkQuizPage() {
               )}
             </div>
 
-            <motion.button
-              onClick={handleNext}
-              disabled={!canProceed}
-              whileTap={{ scale: 0.95 }}
-              whileHover={canProceed ? { scale: 1.02 } : {}}
-              className={`btn-primary text-xs sm:text-sm py-2.5 sm:py-3 px-5 sm:px-6 flex items-center gap-2 ${
-                !canProceed ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
+            <motion.button onClick={handleNext} disabled={!canProceed} whileTap={{ scale: 0.95 }} whileHover={canProceed ? { scale: 1.02 } : {}}
+              className={`btn-primary text-xs sm:text-sm py-2.5 sm:py-3 px-5 sm:px-6 flex items-center gap-2 ${!canProceed ? 'opacity-50 cursor-not-allowed' : ''}`}>
               {currentQuestion + 1 < totalQuestions ? (
                 <>Next <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></>
               ) : (
-                <>See Results <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></>
+                <>Continue to Brain Assessment <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></>
               )}
             </motion.button>
           </div>

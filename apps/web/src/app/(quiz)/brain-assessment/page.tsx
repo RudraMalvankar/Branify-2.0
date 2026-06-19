@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { brainQuestions, calculateBrainScore, brainCategories, type BrainResult } from '@brainify/shared/data/brainQuestions';
-import BrainResults from './results';
 
 const ESTIMATED_SECONDS_PER_QUESTION = 15;
 
@@ -27,10 +27,11 @@ function getMotivationalMessage(current: number) {
 }
 
 export default function BrainAssessmentPage() {
+  const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selections, setSelections] = useState<Record<string, 'A' | 'B'>>({});
   const [selectedAnswer, setSelectedAnswer] = useState<'A' | 'B' | null>(null);
-  const [result, setResult] = useState<BrainResult | null>(null);
+  const [result] = useState<BrainResult | null>(null);
   const [slideDir, setSlideDir] = useState(1);
 
   const totalQuestions = brainQuestions.length;
@@ -65,9 +66,13 @@ export default function BrainAssessmentPage() {
     } else {
       const final = calculateBrainScore(newSelections);
       setSelections(newSelections);
-      setResult(final);
+      // Store brain result in sessionStorage for unified results page
+      sessionStorage.setItem('brainResult', JSON.stringify(final));
+      const varkSequence = { ...selectionsRef.current, [qId]: selectedRef.current };
+      sessionStorage.setItem('brainSelections', JSON.stringify(varkSequence));
+      router.push('/assessment/results');
     }
-  }, [totalQuestions]);
+  }, [totalQuestions, router]);
 
   const handleBack = useCallback(() => {
     if (currentRef.current > 0) {
@@ -92,11 +97,8 @@ export default function BrainAssessmentPage() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleNext, handleBack, handleSelect]);
 
-  const progressPercent = ((currentQuestion + (result ? 1 : 0)) / totalQuestions) * 100;
-
-  if (result) {
-    return <BrainResults result={result} onRetake={() => { setResult(null); setCurrentQuestion(0); setSelections({}); setSelectedAnswer(null); }} />;
-  }
+  const progressPercent = ((currentQuestion) / totalQuestions) * 100;
+  const canProceed = !!selectedAnswer;
 
   const question = brainQuestions[currentQuestion];
   const categoryInfo = brainCategories.find((c) => c.id === question.category);
@@ -137,7 +139,6 @@ export default function BrainAssessmentPage() {
       {/* Content */}
       <div className="flex-1 flex items-start justify-center px-3 sm:px-4 py-4 sm:py-8">
         <div className="w-full max-w-2xl mx-auto">
-          {/* Motivational bar */}
           <motion.div key={`moti-${currentQuestion}`} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2 mb-3 sm:mb-4 px-1">
             <span className="text-sm">{moti.emoji}</span>
             <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{moti.message}</span>
@@ -160,7 +161,6 @@ export default function BrainAssessmentPage() {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mb-6 sm:mb-7">Choose the option that resonates most with you</p>
 
                 <div className="space-y-3">
-                  {/* Option A */}
                   <motion.button
                     onClick={() => handleSelect('A')}
                     whileHover={{ scale: 1.01 }}
@@ -186,7 +186,6 @@ export default function BrainAssessmentPage() {
                     </div>
                   </motion.button>
 
-                  {/* Option B */}
                   <motion.button
                     onClick={() => handleSelect('B')}
                     whileHover={{ scale: 1.01 }}
@@ -216,7 +215,6 @@ export default function BrainAssessmentPage() {
             </motion.div>
           </AnimatePresence>
 
-          {/* Navigation */}
           <div className="flex items-center justify-between gap-3 mb-8">
             <motion.button onClick={handleBack} disabled={currentQuestion === 0} whileTap={{ scale: 0.95 }}
               className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-brand disabled:opacity-30 disabled:cursor-not-allowed transition-colors px-3 sm:px-4 py-2">
@@ -225,19 +223,19 @@ export default function BrainAssessmentPage() {
             </motion.button>
 
             <div className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 text-center hidden sm:block">
-              {selectedAnswer ? (
+              {canProceed ? (
                 <span className="text-green-600 dark:text-green-400">Press <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">Enter</kbd> to continue</span>
               ) : (
                 <span>Press <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">1</kbd> or <kbd className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-[10px] font-mono">2</kbd> to select</span>
               )}
             </div>
 
-            <motion.button onClick={handleNext} disabled={!selectedAnswer} whileTap={{ scale: 0.95 }} whileHover={selectedAnswer ? { scale: 1.02 } : {}}
-              className={`btn-primary text-xs sm:text-sm py-2.5 sm:py-3 px-5 sm:px-6 flex items-center gap-2 ${!selectedAnswer ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <motion.button onClick={handleNext} disabled={!canProceed} whileTap={{ scale: 0.95 }} whileHover={canProceed ? { scale: 1.02 } : {}}
+              className={`btn-primary text-xs sm:text-sm py-2.5 sm:py-3 px-5 sm:px-6 flex items-center gap-2 ${!canProceed ? 'opacity-50 cursor-not-allowed' : ''}`}>
               {currentQuestion + 1 < totalQuestions ? (
                 <>Next <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></>
               ) : (
-                <>See Results <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></>
+                <>See Your Full Report <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></>
               )}
             </motion.button>
           </div>
