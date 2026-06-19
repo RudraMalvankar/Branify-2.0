@@ -342,12 +342,12 @@ export default function HomePage() {
           <h2 className="text-4xl font-bold text-white mb-4">Ready to Unlock Your Hidden Potential?</h2>
           <p className="text-blue-100 text-sm mb-8 max-w-lg mx-auto">Join thousands of students who have discovered their perfect way to learn. It only takes 5 minutes to start.</p>
           <div className="flex gap-3 justify-center flex-wrap">
-            <Link href="/register" className="bg-white text-brand font-bold px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-colors text-sm">
-              Take the VARK Quiz Now
+            <Link href="/vark" className="bg-white text-brand font-bold px-8 py-3.5 rounded-xl hover:bg-blue-50 transition-colors text-sm">
+              Take VARK Assessment
             </Link>
-            <a href="#how-it-works" className="bg-white/20 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-white/30 transition-colors text-sm">
-              Learn More
-            </a>
+            <Link href="/brain-assessment" className="bg-white/20 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-white/30 transition-colors text-sm">
+              Brain Dominance Test
+            </Link>
           </div>
           <div className="flex items-center justify-center gap-6 mt-6 text-xs text-blue-200">
             <span>&check; No Credit Card Required</span>
